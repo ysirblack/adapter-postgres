@@ -608,7 +608,8 @@ export class PostgresDatabaseAdapter
       let sql = `SELECT * FROM memories WHERE "roomId" = $1`;
       const values: any[] = [params.roomId];
       let paramCount = 1;
-
+      console.log("sql=>>", sql);
+      elizaLogger.log("sql=>>", sql);
       // Add time range filters
       if (params.start) {
         paramCount++;
@@ -661,6 +662,8 @@ export class PostgresDatabaseAdapter
       });
 
       const { rows } = await this.pool.query(sql, values);
+      console.log("rows=>>", rows);
+      elizaLogger.log("rows=>>", rows);
       return rows.map((row) => ({
         ...row,
         content:
