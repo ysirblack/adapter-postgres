@@ -454,12 +454,13 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
     });
   }
   async getMemories(params) {
-    if (!params.tableName) throw new Error("tableName is required");
     if (!params.roomId) throw new Error("roomId is required");
     return this.withDatabase(async () => {
-      let sql = `SELECT * FROM memories WHERE type = $1 AND "roomId" = $2`;
-      const values = [params.tableName, params.roomId];
-      let paramCount = 2;
+      let sql = `SELECT * FROM memories WHERE "roomId" = $1`;
+      const values = [params.roomId];
+      let paramCount = 1;
+      console.log("sql=>>", sql);
+      elizaLogger.log("sql=>>", sql);
       if (params.start) {
         paramCount++;
         sql += ` AND "createdAt" >= to_timestamp($${paramCount})`;
@@ -486,7 +487,6 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
       }
       elizaLogger.debug("Fetching memories:", {
         roomId: params.roomId,
-        tableName: params.tableName,
         unique: params.unique,
         agentId: params.agentId,
         timeRange: params.start || params.end ? {
@@ -496,6 +496,8 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
         limit: params.count
       });
       const { rows } = await this.pool.query(sql, values);
+      console.log("rows=>>", rows);
+      elizaLogger.log("rows=>>", rows);
       return rows.map((row) => ({
         ...row,
         content: typeof row.content === "string" ? JSON.parse(row.content) : row.content
@@ -532,12 +534,7 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
       try {
         await this.pool.query(
           `UPDATE goals SET name = $1, status = $2, objectives = $3 WHERE id = $4`,
-          [
-            goal.name,
-            goal.status,
-            JSON.stringify(goal.objectives),
-            goal.id
-          ]
+          [goal.name, goal.status, JSON.stringify(goal.objectives), goal.id]
         );
       } catch (error) {
         elizaLogger.error("Failed to update goal:", {
@@ -589,9 +586,7 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
   async createRoom(roomId) {
     return this.withDatabase(async () => {
       const newRoomId = roomId || v4();
-      await this.pool.query("INSERT INTO rooms (id) VALUES ($1)", [
-        newRoomId
-      ]);
+      await this.pool.query("INSERT INTO rooms (id) VALUES ($1)", [newRoomId]);
       return newRoomId;
     }, "createRoom");
   }
@@ -612,11 +607,7 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
         await client.query('DELETE FROM memories WHERE "roomId" = $1', [
           roomId
         ]);
-        await client.query(
-          'DELETE FROM participants WHERE "roomId" = $1',
-          [roomId]
-        );
-        await client.query('DELETE FROM goals WHERE "roomId" = $1', [
+        await client.query('DELETE FROM participants WHERE "roomId" = $1', [
           roomId
         ]);
         const result = await client.query(
@@ -624,13 +615,10 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
           [roomId]
         );
         await client.query("COMMIT");
-        elizaLogger.debug(
-          "Room and related data removed successfully:",
-          {
-            roomId,
-            removed: (result == null ? void 0 : result.rowCount) ?? 0 > 0
-          }
-        );
+        elizaLogger.debug("Room and related data removed successfully:", {
+          roomId,
+          removed: (result == null ? void 0 : result.rowCount) ?? 0 > 0
+        });
       } catch (error) {
         await client.query("ROLLBACK");
         elizaLogger.error("Failed to remove room:", {
@@ -743,11 +731,9 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
     }, "getRelationships");
   }
   async getCachedEmbeddings(opts) {
-    if (!opts.query_table_name)
-      throw new Error("query_table_name is required");
+    if (!opts.query_table_name) throw new Error("query_table_name is required");
     if (!opts.query_input) throw new Error("query_input is required");
-    if (!opts.query_field_name)
-      throw new Error("query_field_name is required");
+    if (!opts.query_field_name) throw new Error("query_field_name is required");
     if (!opts.query_field_sub_name)
       throw new Error("query_field_sub_name is required");
     if (opts.query_match_count <= 0)
@@ -804,9 +790,7 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
             if (!Array.isArray(row.embedding)) return null;
             return {
               embedding: row.embedding,
-              levenshtein_score: Number(
-                row.levenshtein_score
-              )
+              levenshtein_score: Number(row.levenshtein_score)
             };
           }
         ).filter(
@@ -968,10 +952,10 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
   }
   async updateGoalStatus(params) {
     return this.withDatabase(async () => {
-      await this.pool.query(
-        "UPDATE goals SET status = $1 WHERE id = $2",
-        [params.status, params.goalId]
-      );
+      await this.pool.query("UPDATE goals SET status = $1 WHERE id = $2", [
+        params.status,
+        params.goalId
+      ]);
     }, "updateGoalStatus");
   }
   async removeMemory(memoryId, tableName) {
@@ -1003,9 +987,7 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
   }
   async removeAllGoals(roomId) {
     return this.withDatabase(async () => {
-      await this.pool.query(`DELETE FROM goals WHERE "roomId" = $1`, [
-        roomId
-      ]);
+      await this.pool.query(`DELETE FROM goals WHERE "roomId" = $1`, [roomId]);
     }, "removeAllGoals");
   }
   async getRoomsForParticipant(userId) {
@@ -1045,9 +1027,7 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
                     WHERE p."roomId" = $1
                     ORDER BY a.name
                 `;
-        const result = await this.pool.query(sql, [
-          params.roomId
-        ]);
+        const result = await this.pool.query(sql, [params.roomId]);
         elizaLogger.debug("Retrieved actor details:", {
           roomId: params.roomId,
           actorCount: result.rows.length
@@ -1128,10 +1108,7 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
           if (client) client.release();
         }
       } catch (error) {
-        elizaLogger.error(
-          "Database connection error in setCache",
-          error
-        );
+        elizaLogger.error("Database connection error in setCache", error);
         return false;
       }
     }, "setCache");
@@ -1160,10 +1137,7 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
           client.release();
         }
       } catch (error) {
-        elizaLogger.error(
-          "Database connection error in deleteCache",
-          error
-        );
+        elizaLogger.error("Database connection error in deleteCache", error);
         return false;
       }
     }, "deleteCache");
@@ -1320,16 +1294,11 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
         await client.query("BEGIN");
         if (typeof id === "string" && id.includes("-chunk-*")) {
           const mainId = id.split("-chunk-")[0];
-          await client.query(
-            'DELETE FROM knowledge WHERE "originalId" = $1',
-            [mainId]
-          );
+          await client.query('DELETE FROM knowledge WHERE "originalId" = $1', [
+            mainId
+          ]);
         } else {
-          await client.query(
-            'DELETE FROM knowledge WHERE "originalId" = $1',
-            [id]
-          );
-          await client.query("DELETE FROM knowledge WHERE id = $1", [
+          await client.query('DELETE FROM knowledge WHERE "originalId" = $1', [
             id
           ]);
         }
@@ -1396,9 +1365,7 @@ var postgresAdapter = {
         parseInputs: true
       });
       db.init().then(() => {
-        elizaLogger.success(
-          "Successfully connected to PostgreSQL database"
-        );
+        elizaLogger.success("Successfully connected to PostgreSQL database");
       }).catch((error) => {
         elizaLogger.error("Failed to connect to PostgreSQL:", error);
       });
