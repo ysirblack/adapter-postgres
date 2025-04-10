@@ -623,10 +623,10 @@ export class PostgresDatabaseAdapter
         values.push(params.end / 1000);
       }
 
-      // Add other filters
-      if (params.unique) {
-        sql += ` AND "unique" = true`;
-      }
+      // Add other filters - ignore the unique filter to match Supabase implementation
+      // if (params.unique) {
+      //     sql += ` AND "unique" = true`;
+      // }
 
       if (params.agentId) {
         paramCount++;

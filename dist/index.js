@@ -471,9 +471,6 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
         sql += ` AND "createdAt" <= to_timestamp($${paramCount})`;
         values.push(params.end / 1e3);
       }
-      if (params.unique) {
-        sql += ` AND "unique" = true`;
-      }
       if (params.agentId) {
         paramCount++;
         sql += ` AND "agentId" = $${paramCount}`;
