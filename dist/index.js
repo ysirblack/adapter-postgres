@@ -459,8 +459,6 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
       let sql = `SELECT * FROM memories WHERE "roomId" = $1`;
       const values = [params.roomId];
       let paramCount = 1;
-      console.log("sql=>>", sql);
-      elizaLogger.log("sql=>>", sql);
       if (params.start) {
         paramCount++;
         sql += ` AND "createdAt" >= to_timestamp($${paramCount})`;
@@ -493,8 +491,6 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
         limit: params.count
       });
       const { rows } = await this.pool.query(sql, values);
-      console.log("rows=>>", rows);
-      elizaLogger.log("rows=>>", rows);
       return rows.map((row) => ({
         ...row,
         content: typeof row.content === "string" ? JSON.parse(row.content) : row.content
