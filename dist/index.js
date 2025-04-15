@@ -21,8 +21,8 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
   // 10 seconds
   jitterMax = 1e3;
   // 1 second
-  connectionTimeout = 5e3;
-  // 5 seconds
+  connectionTimeout = 15e3;
+  // 10 seconds
   constructor(connectionConfig) {
     super({
       //circuitbreaker stuff
