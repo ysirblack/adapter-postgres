@@ -5,7 +5,7 @@ import {
   DatabaseAdapter,
   EmbeddingProvider,
   elizaLogger,
-  getEmbeddingConfig
+  getEmbeddingConfig,
 } from "@elizaos/core";
 import fs from "fs";
 import path from "path";
@@ -28,16 +28,16 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
       //circuitbreaker stuff
       failureThreshold: 5,
       resetTimeout: 6e4,
-      halfOpenMaxAttempts: 3
+      halfOpenMaxAttempts: 3,
     });
     const defaultConfig = {
-      max: 20,
+      max: 70,
       idleTimeoutMillis: 3e4,
-      connectionTimeoutMillis: this.connectionTimeout
+      connectionTimeoutMillis: this.connectionTimeout,
     };
     this.pool = new pg.Pool({
       ...defaultConfig,
-      ...connectionConfig
+      ...connectionConfig,
       // Allow overriding defaults
     });
     this.pool.on("error", (err) => {
@@ -83,14 +83,14 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
             `Database operation failed (attempt ${attempt}/${this.maxRetries}):`,
             {
               error: error instanceof Error ? error.message : String(error),
-              nextRetryIn: `${(delay / 1e3).toFixed(1)}s`
+              nextRetryIn: `${(delay / 1e3).toFixed(1)}s`,
             }
           );
           await new Promise((resolve) => setTimeout(resolve, delay));
         } else {
           elizaLogger.error("Max retry attempts reached:", {
             error: error instanceof Error ? error.message : String(error),
-            totalAttempts: attempt
+            totalAttempts: attempt,
           });
           throw error instanceof Error ? error : new Error(String(error));
         }
@@ -100,19 +100,22 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
   }
   async handlePoolError(error) {
     elizaLogger.error("Pool error occurred, attempting to reconnect", {
-      error: error.message
+      error: error.message,
     });
     try {
       await this.pool.end();
       this.pool = new pg.Pool({
         ...this.pool.options,
-        connectionTimeoutMillis: this.connectionTimeout
+        connectionTimeoutMillis: this.connectionTimeout,
       });
       await this.testConnection();
       elizaLogger.success("Pool reconnection successful");
     } catch (reconnectError) {
       elizaLogger.error("Failed to reconnect pool", {
-        error: reconnectError instanceof Error ? reconnectError.message : String(reconnectError)
+        error:
+          reconnectError instanceof Error
+            ? reconnectError.message
+            : String(reconnectError),
       });
       throw reconnectError;
     }
@@ -135,7 +138,7 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
       return true;
     } catch (error) {
       elizaLogger.error("Failed to validate vector extension:", {
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
       return false;
     }
@@ -170,7 +173,7 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
                     WHERE table_name = 'rooms'
                 );
             `);
-      if (!rows[0].exists || !await this.validateVectorSetup()) {
+      if (!rows[0].exists || !(await this.validateVectorSetup())) {
         elizaLogger.info(
           "Applying database schema - tables or vector extension missing"
         );
@@ -204,9 +207,7 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
       return true;
     } catch (error) {
       elizaLogger.error("Database connection test failed:", error);
-      throw new Error(
-        `Failed to connect to database: ${error.message}`
-      );
+      throw new Error(`Failed to connect to database: ${error.message}`);
     } finally {
       if (client) client.release();
     }
@@ -266,7 +267,10 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
       const { rows } = await this.pool.query(query, queryParams);
       return rows.map((row) => ({
         ...row,
-        content: typeof row.content === "string" ? JSON.parse(row.content) : row.content
+        content:
+          typeof row.content === "string"
+            ? JSON.parse(row.content)
+            : row.content,
       }));
     }, "getMemoriesByRoomIds");
   }
@@ -300,7 +304,10 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
       const account = rows[0];
       return {
         ...account,
-        details: typeof account.details === "string" ? JSON.parse(account.details) : account.details
+        details:
+          typeof account.details === "string"
+            ? JSON.parse(account.details)
+            : account.details,
       };
     }, "getAccountById");
   }
@@ -317,18 +324,18 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
             account.username || "",
             account.email || "",
             account.avatarUrl || "",
-            JSON.stringify(account.details)
+            JSON.stringify(account.details),
           ]
         );
         elizaLogger.debug("Account created successfully:", {
-          accountId
+          accountId,
         });
         return true;
       } catch (error) {
         elizaLogger.error("Error creating account:", {
           error: error instanceof Error ? error.message : String(error),
           accountId: account.id,
-          name: account.name
+          name: account.name,
           // Only log non-sensitive fields
         });
         return false;
@@ -346,22 +353,25 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
       );
       elizaLogger.debug("Retrieved actors:", {
         roomId: params.roomId,
-        actorCount: rows.length
+        actorCount: rows.length,
       });
       return rows.map((row) => {
         try {
           return {
             ...row,
-            details: typeof row.details === "string" ? JSON.parse(row.details) : row.details
+            details:
+              typeof row.details === "string"
+                ? JSON.parse(row.details)
+                : row.details,
           };
         } catch (error) {
           elizaLogger.warn("Failed to parse actor details:", {
             actorId: row.id,
-            error: error instanceof Error ? error.message : String(error)
+            error: error instanceof Error ? error.message : String(error),
           });
           return {
             ...row,
-            details: {}
+            details: {},
             // Provide default empty details on parse error
           };
         }
@@ -369,7 +379,7 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
     }, "getActorById").catch((error) => {
       elizaLogger.error("Failed to get actors:", {
         roomId: params.roomId,
-        error: error.message
+        error: error.message,
       });
       throw error;
     });
@@ -383,7 +393,10 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
       if (rows.length === 0) return null;
       return {
         ...rows[0],
-        content: typeof rows[0].content === "string" ? JSON.parse(rows[0].content) : rows[0].content
+        content:
+          typeof rows[0].content === "string"
+            ? JSON.parse(rows[0].content)
+            : rows[0].content,
       };
     }, "getMemoryById");
   }
@@ -400,7 +413,10 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
       const { rows } = await this.pool.query(sql, queryParams);
       return rows.map((row) => ({
         ...row,
-        content: typeof row.content === "string" ? JSON.parse(row.content) : row.content
+        content:
+          typeof row.content === "string"
+            ? JSON.parse(row.content)
+            : row.content,
       }));
     }, "getMemoriesByIds");
   }
@@ -410,7 +426,10 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
       elizaLogger.debug("PostgresAdapter createMemory:", {
         memoryId: memory.id,
         embeddingLength: (_a = memory.embedding) == null ? void 0 : _a.length,
-        contentLength: (_c = (_b = memory.content) == null ? void 0 : _b.text) == null ? void 0 : _c.length
+        contentLength:
+          (_c = (_b = memory.content) == null ? void 0 : _b.text) == null
+            ? void 0
+            : _c.length,
       });
       let isUnique = true;
       if (memory.embedding) {
@@ -420,7 +439,7 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
             tableName,
             roomId: memory.roomId,
             match_threshold: 0.95,
-            count: 1
+            count: 1,
           }
         );
         isUnique = similarMemories.length === 0;
@@ -438,7 +457,7 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
           memory.roomId,
           memory.agentId,
           memory.unique ?? isUnique,
-          Date.now()
+          Date.now(),
         ]
       );
     }, "createMemory");
@@ -450,7 +469,7 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
       agentId: params.agentId,
       roomId: params.roomId,
       unique: params.unique,
-      tableName: params.tableName
+      tableName: params.tableName,
     });
   }
   async getMemories(params) {
@@ -484,16 +503,24 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
         roomId: params.roomId,
         unique: params.unique,
         agentId: params.agentId,
-        timeRange: params.start || params.end ? {
-          start: params.start ? new Date(params.start).toISOString() : void 0,
-          end: params.end ? new Date(params.end).toISOString() : void 0
-        } : void 0,
-        limit: params.count
+        timeRange:
+          params.start || params.end
+            ? {
+                start: params.start
+                  ? new Date(params.start).toISOString()
+                  : void 0,
+                end: params.end ? new Date(params.end).toISOString() : void 0,
+              }
+            : void 0,
+        limit: params.count,
       });
       const { rows } = await this.pool.query(sql, values);
       return rows.map((row) => ({
         ...row,
-        content: typeof row.content === "string" ? JSON.parse(row.content) : row.content
+        content:
+          typeof row.content === "string"
+            ? JSON.parse(row.content)
+            : row.content,
       }));
     }, "getMemories");
   }
@@ -518,7 +545,10 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
       const { rows } = await this.pool.query(sql, values);
       return rows.map((row) => ({
         ...row,
-        objectives: typeof row.objectives === "string" ? JSON.parse(row.objectives) : row.objectives
+        objectives:
+          typeof row.objectives === "string"
+            ? JSON.parse(row.objectives)
+            : row.objectives,
       }));
     }, "getGoals");
   }
@@ -533,7 +563,7 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
         elizaLogger.error("Failed to update goal:", {
           goalId: goal.id,
           error: error instanceof Error ? error.message : String(error),
-          status: goal.status
+          status: goal.status,
         });
         throw error;
       }
@@ -550,7 +580,7 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
           goal.userId,
           goal.name,
           goal.status,
-          JSON.stringify(goal.objectives)
+          JSON.stringify(goal.objectives),
         ]
       );
     }, "createGoal");
@@ -565,12 +595,12 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
         );
         elizaLogger.debug("Goal removal attempt:", {
           goalId,
-          removed: (result == null ? void 0 : result.rowCount) ?? 0 > 0
+          removed: (result == null ? void 0 : result.rowCount) ?? 0 > 0,
         });
       } catch (error) {
         elizaLogger.error("Failed to remove goal:", {
           goalId,
-          error: error instanceof Error ? error.message : String(error)
+          error: error instanceof Error ? error.message : String(error),
         });
         throw error;
       }
@@ -598,10 +628,10 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
           throw new Error(`Room not found: ${roomId}`);
         }
         await client.query('DELETE FROM memories WHERE "roomId" = $1', [
-          roomId
+          roomId,
         ]);
         await client.query('DELETE FROM participants WHERE "roomId" = $1', [
-          roomId
+          roomId,
         ]);
         const result = await client.query(
           "DELETE FROM rooms WHERE id = $1 RETURNING id",
@@ -610,13 +640,13 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
         await client.query("COMMIT");
         elizaLogger.debug("Room and related data removed successfully:", {
           roomId,
-          removed: (result == null ? void 0 : result.rowCount) ?? 0 > 0
+          removed: (result == null ? void 0 : result.rowCount) ?? 0 > 0,
         });
       } catch (error) {
         await client.query("ROLLBACK");
         elizaLogger.error("Failed to remove room:", {
           roomId,
-          error: error instanceof Error ? error.message : String(error)
+          error: error instanceof Error ? error.message : String(error),
         });
         throw error;
       } finally {
@@ -640,7 +670,7 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
         elizaLogger.debug("Relationship created successfully:", {
           relationshipId,
           userA: params.userA,
-          userB: params.userB
+          userB: params.userB,
         });
         return true;
       } catch (error) {
@@ -648,13 +678,13 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
           elizaLogger.warn("Relationship already exists:", {
             userA: params.userA,
             userB: params.userB,
-            error: error instanceof Error ? error.message : String(error)
+            error: error instanceof Error ? error.message : String(error),
           });
         } else {
           elizaLogger.error("Failed to create relationship:", {
             userA: params.userA,
             userB: params.userB,
-            error: error instanceof Error ? error.message : String(error)
+            error: error instanceof Error ? error.message : String(error),
           });
         }
         return false;
@@ -677,20 +707,20 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
           elizaLogger.debug("Relationship found:", {
             relationshipId: rows[0].id,
             userA: params.userA,
-            userB: params.userB
+            userB: params.userB,
           });
           return rows[0];
         }
         elizaLogger.debug("No relationship found between users:", {
           userA: params.userA,
-          userB: params.userB
+          userB: params.userB,
         });
         return null;
       } catch (error) {
         elizaLogger.error("Error fetching relationship:", {
           userA: params.userA,
           userB: params.userB,
-          error: error instanceof Error ? error.message : String(error)
+          error: error instanceof Error ? error.message : String(error),
         });
         throw error;
       }
@@ -711,13 +741,13 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
         );
         elizaLogger.debug("Retrieved relationships:", {
           userId: params.userId,
-          count: rows.length
+          count: rows.length,
         });
         return rows;
       } catch (error) {
         elizaLogger.error("Failed to fetch relationships:", {
           userId: params.userId,
-          error: error instanceof Error ? error.message : String(error)
+          error: error instanceof Error ? error.message : String(error),
         });
         throw error;
       }
@@ -738,7 +768,7 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
           fieldName: opts.query_field_name,
           subFieldName: opts.query_field_sub_name,
           matchCount: opts.query_match_count,
-          inputLength: opts.query_input.length
+          inputLength: opts.query_input.length,
         });
         const sql = `
                     WITH content_text AS (
@@ -771,29 +801,27 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
           opts.query_field_sub_name,
           opts.query_table_name,
           opts.query_match_count,
-          opts.query_threshold
+          opts.query_threshold,
         ]);
         elizaLogger.debug("Retrieved cached embeddings:", {
           count: rows.length,
           tableName: opts.query_table_name,
-          matchCount: opts.query_match_count
+          matchCount: opts.query_match_count,
         });
-        return rows.map(
-          (row) => {
+        return rows
+          .map((row) => {
             if (!Array.isArray(row.embedding)) return null;
             return {
               embedding: row.embedding,
-              levenshtein_score: Number(row.levenshtein_score)
+              levenshtein_score: Number(row.levenshtein_score),
             };
-          }
-        ).filter(
-          (row) => row !== null
-        );
+          })
+          .filter((row) => row !== null);
       } catch (error) {
         elizaLogger.error("Error in getCachedEmbeddings:", {
           error: error instanceof Error ? error.message : String(error),
           tableName: opts.query_table_name,
-          fieldName: opts.query_field_name
+          fieldName: opts.query_field_name,
         });
         throw error;
       }
@@ -825,7 +853,7 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
             // Ensure body is stringified
             params.userId,
             params.roomId,
-            params.type
+            params.type,
           ]
         );
         elizaLogger.debug("Log entry created:", {
@@ -833,14 +861,14 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
           type: params.type,
           roomId: params.roomId,
           userId: params.userId,
-          bodyKeys: Object.keys(params.body)
+          bodyKeys: Object.keys(params.body),
         });
       } catch (error) {
         elizaLogger.error("Failed to create log entry:", {
           error: error instanceof Error ? error.message : String(error),
           type: params.type,
           roomId: params.roomId,
-          userId: params.userId
+          userId: params.userId,
         });
         throw error;
       }
@@ -852,11 +880,13 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
         length: embedding.length,
         sample: embedding.slice(0, 5),
         isArray: Array.isArray(embedding),
-        allNumbers: embedding.every((n) => typeof n === "number")
+        allNumbers: embedding.every((n) => typeof n === "number"),
       });
       if (embedding.length !== getEmbeddingConfig().dimensions) {
         throw new Error(
-          `Invalid embedding dimension: expected ${getEmbeddingConfig().dimensions}, got ${embedding.length}`
+          `Invalid embedding dimension: expected ${
+            getEmbeddingConfig().dimensions
+          }, got ${embedding.length}`
         );
       }
       const cleanVector = embedding.map((n) => {
@@ -867,11 +897,13 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
       elizaLogger.debug("Vector debug:", {
         originalLength: embedding.length,
         cleanLength: cleanVector.length,
-        sampleStr: vectorStr.slice(0, 100)
+        sampleStr: vectorStr.slice(0, 100),
       });
       let sql = `
                 SELECT *,
-                1 - (embedding <-> $1::vector(${getEmbeddingConfig().dimensions})) as similarity
+                1 - (embedding <-> $1::vector(${
+                  getEmbeddingConfig().dimensions
+                })) as similarity
                 FROM memories
                 WHERE type = $2
             `;
@@ -879,7 +911,7 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
       elizaLogger.debug("Query debug:", {
         sql: sql.slice(0, 200),
         paramTypes: values.map((v) => typeof v),
-        vectorStrLength: vectorStr.length
+        vectorStrLength: vectorStr.length,
       });
       let paramCount = 2;
       if (params.unique) {
@@ -909,8 +941,11 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
       const { rows } = await this.pool.query(sql, values);
       return rows.map((row) => ({
         ...row,
-        content: typeof row.content === "string" ? JSON.parse(row.content) : row.content,
-        similarity: row.similarity
+        content:
+          typeof row.content === "string"
+            ? JSON.parse(row.content)
+            : row.content,
+        similarity: row.similarity,
       }));
     }, "searchMemoriesByEmbedding");
   }
@@ -947,7 +982,7 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
     return this.withDatabase(async () => {
       await this.pool.query("UPDATE goals SET status = $1 WHERE id = $2", [
         params.status,
-        params.goalId
+        params.goalId,
       ]);
     }, "updateGoalStatus");
   }
@@ -1023,22 +1058,28 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
         const result = await this.pool.query(sql, [params.roomId]);
         elizaLogger.debug("Retrieved actor details:", {
           roomId: params.roomId,
-          actorCount: result.rows.length
+          actorCount: result.rows.length,
         });
         return result.rows.map((row) => {
           try {
             return {
               ...row,
-              details: typeof row.details === "string" ? JSON.parse(row.details) : row.details
+              details:
+                typeof row.details === "string"
+                  ? JSON.parse(row.details)
+                  : row.details,
             };
           } catch (parseError) {
             elizaLogger.warn("Failed to parse actor details:", {
               actorId: row.id,
-              error: parseError instanceof Error ? parseError.message : String(parseError)
+              error:
+                parseError instanceof Error
+                  ? parseError.message
+                  : String(parseError),
             });
             return {
               ...row,
-              details: {}
+              details: {},
               // Fallback to empty object if parsing fails
             };
           }
@@ -1046,10 +1087,12 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
       } catch (error) {
         elizaLogger.error("Failed to fetch actor details:", {
           roomId: params.roomId,
-          error: error instanceof Error ? error.message : String(error)
+          error: error instanceof Error ? error.message : String(error),
         });
         throw new Error(
-          `Failed to fetch actor details: ${error instanceof Error ? error.message : String(error)}`
+          `Failed to fetch actor details: ${
+            error instanceof Error ? error.message : String(error)
+          }`
         );
       }
     }, "getActorDetails");
@@ -1059,16 +1102,13 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
       var _a;
       try {
         const sql = `SELECT "value"::TEXT FROM cache WHERE "key" = $1 AND "agentId" = $2`;
-        const { rows } = await this.query(sql, [
-          params.key,
-          params.agentId
-        ]);
+        const { rows } = await this.query(sql, [params.key, params.agentId]);
         return ((_a = rows[0]) == null ? void 0 : _a.value) ?? void 0;
       } catch (error) {
         elizaLogger.error("Error fetching cache", {
           error: error instanceof Error ? error.message : String(error),
           key: params.key,
-          agentId: params.agentId
+          agentId: params.agentId,
         });
         return void 0;
       }
@@ -1094,7 +1134,7 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
           elizaLogger.error("Error setting cache", {
             error: error instanceof Error ? error.message : String(error),
             key: params.key,
-            agentId: params.agentId
+            agentId: params.agentId,
           });
           return false;
         } finally {
@@ -1123,7 +1163,7 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
           elizaLogger.error("Error deleting cache", {
             error: error instanceof Error ? error.message : String(error),
             key: params.key,
-            agentId: params.agentId
+            agentId: params.agentId,
           });
           return false;
         } finally {
@@ -1154,9 +1194,12 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
       return rows.map((row) => ({
         id: row.id,
         agentId: row.agentId,
-        content: typeof row.content === "string" ? JSON.parse(row.content) : row.content,
+        content:
+          typeof row.content === "string"
+            ? JSON.parse(row.content)
+            : row.content,
         embedding: row.embedding ? new Float32Array(row.embedding) : void 0,
-        createdAt: row.createdAt.getTime()
+        createdAt: row.createdAt.getTime(),
       }));
     }, "getKnowledge");
   }
@@ -1165,7 +1208,7 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
       const cacheKey = `embedding_${params.agentId}_${params.searchText}`;
       const cachedResult = await this.getCache({
         key: cacheKey,
-        agentId: params.agentId
+        agentId: params.agentId,
       });
       if (cachedResult) {
         return JSON.parse(cachedResult);
@@ -1213,20 +1256,23 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
         params.agentId,
         `%${params.searchText || ""}%`,
         params.match_threshold,
-        params.match_count
+        params.match_count,
       ]);
       const results = rows.map((row) => ({
         id: row.id,
         agentId: row.agentId,
-        content: typeof row.content === "string" ? JSON.parse(row.content) : row.content,
+        content:
+          typeof row.content === "string"
+            ? JSON.parse(row.content)
+            : row.content,
         embedding: row.embedding ? new Float32Array(row.embedding) : void 0,
         createdAt: row.createdAt.getTime(),
-        similarity: row.combined_score
+        similarity: row.combined_score,
       }));
       await this.setCache({
         key: cacheKey,
         agentId: params.agentId,
-        value: JSON.stringify(results)
+        value: JSON.stringify(results),
       });
       return results;
     }, "searchKnowledge");
@@ -1237,7 +1283,9 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
       try {
         await client.query("BEGIN");
         const metadata = knowledge.content.metadata || {};
-        const vectorStr = knowledge.embedding ? `[${Array.from(knowledge.embedding).join(",")}]` : null;
+        const vectorStr = knowledge.embedding
+          ? `[${Array.from(knowledge.embedding).join(",")}]`
+          : null;
         if (metadata.isChunk && metadata.originalId) {
           await this.createKnowledgeChunk({
             id: knowledge.id,
@@ -1247,7 +1295,7 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
             embedding: knowledge.embedding,
             chunkIndex: metadata.chunkIndex || 0,
             isShared: metadata.isShared || false,
-            createdAt: knowledge.createdAt || Date.now()
+            createdAt: knowledge.createdAt || Date.now(),
           });
         } else {
           await client.query(
@@ -1267,7 +1315,7 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
               true,
               null,
               null,
-              metadata.isShared || false
+              metadata.isShared || false,
             ]
           );
         }
@@ -1288,11 +1336,11 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
         if (typeof id === "string" && id.includes("-chunk-*")) {
           const mainId = id.split("-chunk-")[0];
           await client.query('DELETE FROM knowledge WHERE "originalId" = $1', [
-            mainId
+            mainId,
           ]);
         } else {
           await client.query('DELETE FROM knowledge WHERE "originalId" = $1', [
-            id
+            id,
           ]);
         }
         await client.query("COMMIT");
@@ -1300,7 +1348,7 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
         await client.query("ROLLBACK");
         elizaLogger.error("Error removing knowledge", {
           error: error instanceof Error ? error.message : String(error),
-          id
+          id,
         });
         throw error;
       } finally {
@@ -1310,19 +1358,23 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
   }
   async clearKnowledge(agentId, shared) {
     return this.withDatabase(async () => {
-      const sql = shared ? 'DELETE FROM knowledge WHERE ("agentId" = $1 OR "isShared" = true)' : 'DELETE FROM knowledge WHERE "agentId" = $1';
+      const sql = shared
+        ? 'DELETE FROM knowledge WHERE ("agentId" = $1 OR "isShared" = true)'
+        : 'DELETE FROM knowledge WHERE "agentId" = $1';
       await this.pool.query(sql, [agentId]);
     }, "clearKnowledge");
   }
   async createKnowledgeChunk(params) {
-    const vectorStr = params.embedding ? `[${Array.from(params.embedding).join(",")}]` : null;
+    const vectorStr = params.embedding
+      ? `[${Array.from(params.embedding).join(",")}]`
+      : null;
     const patternId = `${params.originalId}-chunk-${params.chunkIndex}`;
     const contentWithPatternId = {
       ...params.content,
       metadata: {
         ...params.content.metadata,
-        patternId
-      }
+        patternId,
+      },
     };
     await this.pool.query(
       `
@@ -1343,7 +1395,7 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
         false,
         params.originalId,
         params.chunkIndex,
-        params.isShared
+        params.isShared,
       ]
     );
   }
@@ -1355,29 +1407,28 @@ var postgresAdapter = {
       elizaLogger.info("Initializing PostgreSQL connection...");
       const db = new PostgresDatabaseAdapter({
         connectionString: POSTGRES_URL,
-        parseInputs: true
+        parseInputs: true,
       });
-      db.init().then(() => {
-        elizaLogger.success("Successfully connected to PostgreSQL database");
-      }).catch((error) => {
-        elizaLogger.error("Failed to connect to PostgreSQL:", error);
-      });
+      db.init()
+        .then(() => {
+          elizaLogger.success("Successfully connected to PostgreSQL database");
+        })
+        .catch((error) => {
+          elizaLogger.error("Failed to connect to PostgreSQL:", error);
+        });
       return db;
     } else {
       throw new Error("POSTGRES_URL is not set");
     }
-  }
+  },
 };
 
 // src/index.ts
 var postgresPlugin = {
   name: "postgres",
   description: "PostgreSQL database adapter plugin",
-  adapters: [postgresAdapter]
+  adapters: [postgresAdapter],
 };
 var index_default = postgresPlugin;
-export {
-  PostgresDatabaseAdapter,
-  index_default as default
-};
+export { PostgresDatabaseAdapter, index_default as default };
 //# sourceMappingURL=index.js.map
