@@ -342,6 +342,105 @@ var PostgresDatabaseAdapter = class extends DatabaseAdapter {
       }
     }, "createAccount");
   }
+
+  async updateAccountById(account) {
+    return this.withDatabase(async () => {
+      try {
+        if (!account.id) {
+          throw new Error("Account ID is required for update.");
+        }
+        await this.pool.query(
+          `UPDATE accounts
+           SET name = $1,
+               username = $2,
+               email = $3,
+               "avatarUrl" = $4,
+               details = $5
+           WHERE id = $6`,
+          [
+            account.name,
+            account.username || "",
+            account.email || "",
+            account.avatarUrl || "",
+            JSON.stringify(account.details),
+            account.id,
+          ]
+        );
+        elizaLogger.debug("Account updated successfully:", {
+          accountId: account.id,
+        });
+        return true;
+      } catch (error) {
+        elizaLogger.error("Error updating account:", {
+          error: error instanceof Error ? error.message : String(error),
+          accountId: account.id,
+        });
+        return false;
+      }
+    }, "updateAccountById");
+  }
+
+  async updateAccountDetailsById(accountId, details) {
+    return this.withDatabase(async () => {
+      try {
+        if (!accountId) {
+          throw new Error("Account ID is required for updating details.");
+        }
+        await this.pool.query(
+          `UPDATE accounts
+           SET details = $1
+           WHERE id = $2`,
+          [JSON.stringify(details), accountId]
+        );
+        elizaLogger.debug("Account details updated successfully:", {
+          accountId,
+        });
+        return true;
+      } catch (error) {
+        elizaLogger.error("Error updating account details:", {
+          error: error instanceof Error ? error.message : String(error),
+          accountId,
+        });
+        return false;
+      }
+    }, "updateAccountDetailsById");
+  }
+
+  async updateAccountCoreFieldsById(accountId, data) {
+    return this.withDatabase(async () => {
+      try {
+        if (!accountId) {
+          throw new Error("Account ID is required.");
+        }
+
+        await this.pool.query(
+          `UPDATE accounts
+           SET name = $1,
+               username = $2,
+               details = $3
+           WHERE id = $4`,
+          [
+            data.name || "",
+            data.username || "",
+            JSON.stringify(data.details ?? {}),
+            accountId,
+          ]
+        );
+
+        elizaLogger.debug("Account core fields updated successfully:", {
+          accountId,
+        });
+        return true;
+      } catch (error) {
+        elizaLogger.error("Error updating core account fields:", {
+          error: error instanceof Error ? error.message : String(error),
+          accountId,
+        });
+        return false;
+      }
+    }, "updateAccountCoreFieldsById");
+  }
+
   async getActorById(params) {
     return this.withDatabase(async () => {
       const { rows } = await this.pool.query(
