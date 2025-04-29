@@ -442,6 +442,44 @@ export class PostgresDatabaseAdapter
     }, "createAccount");
   }
 
+  async updateAccountCoreFieldsById(
+    accountId: string,
+    data: { name?: string; username?: string; details?: any }
+  ) {
+    return this.withDatabase(async () => {
+      try {
+        if (!accountId) {
+          throw new Error("Account ID is required.");
+        }
+
+        await this.pool.query(
+          `UPDATE accounts
+           SET name = $1,
+               username = $2,
+               details = $3
+           WHERE id = $4`,
+          [
+            data.name || "",
+            data.username || "",
+            JSON.stringify(data.details ?? {}),
+            accountId,
+          ]
+        );
+
+        elizaLogger.debug("Account core fields updated successfully:", {
+          accountId,
+        });
+        return true;
+      } catch (error) {
+        elizaLogger.error("Error updating core account fields:", {
+          error: error instanceof Error ? error.message : String(error),
+          accountId,
+        });
+        return false;
+      }
+    }, "updateAccountCoreFieldsById");
+  }
+
   async getActorById(params: { roomId: UUID }): Promise<Actor[]> {
     return this.withDatabase(async () => {
       const { rows } = await this.pool.query(

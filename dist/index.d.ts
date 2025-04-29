@@ -35,6 +35,11 @@ declare class PostgresDatabaseAdapter extends DatabaseAdapter<Pool> implements I
     getParticipantsForRoom(roomId: UUID): Promise<UUID[]>;
     getAccountById(userId: UUID): Promise<Account | null>;
     createAccount(account: Account): Promise<boolean>;
+    updateAccountCoreFieldsById(accountId: string, data: {
+        name?: string;
+        username?: string;
+        details?: any;
+    }): Promise<boolean>;
     getActorById(params: {
         roomId: UUID;
     }): Promise<Actor[]>;
